@@ -6,57 +6,63 @@ from os import listdir
 from os.path import join
 
 
-def parse_annotation(root, image_dir):
+def parse_annotation(root):
 
-    filename = join(image_dir, root.find("filename").text)
     objects = root.findall("object")
-    return [(filename, parse_object_node(obj)) for obj in objects]
+    return [parse_object_node(obj) for obj in objects]
 
 
 def parse_object_node(object_node):
 
     obj_class = object_node.find("name").text
     box_coor = object_node.find("bndbox")
-    return (obj_class, [
+
+    return [
         box_coor.find("xmin").text,
         box_coor.find("ymin").text,
         box_coor.find("xmax").text,
         box_coor.find("ymax").text,
-    ])
+        obj_class
+    ]
 
 
 def parse_file(filename, image_dir):
 
-    return parse_annotation(
-        ET.parse(filename).getroot(),
-        image_dir)
+    root = ET.parse(filename).getroot()
+    filename = root.find("filename").text
+    objects = parse_annotation(root)
+
+    return (filename, objects)
 
 
 def flatten_annotation(annotation):
 
-    filename = annotation[0]
-    obj_class = annotation[1][0]
-    xmin, ymin, xmax, ymax = annotation[1][1]
-    return [filename, obj_class, xmin, ymin, xmax, ymax]
+    obj_class = annotation[0]
+    xmin, ymin, xmax, ymax = annotation[1]
+    return [xmin, ymin, xmax, ymax, obj_class]
 
 
-def encoding_classes(annotations):
+def encoding_classes(file_annotations):
 
-    unique_classes = Set([a[1] for a in annotations])
+    unique_classes = [Set([a[4] for a in annotations]) for _, annotations in file_annotations]
+    unique_classes = reduce(lambda x, y: x.union(y), unique_classes, Set())
+
     unique_class_mapping = {
         classname: i for i, classname in enumerate(unique_classes)}
 
-    return [[k, unique_class_mapping[k]] for k in unique_class_mapping.keys()], [
-        [a[0], unique_class_mapping[a[1]], a[2], a[3], a[4], a[5]]
-        for a in annotations
-    ]
+    return [(key, unique_class_mapping[key]) for key in unique_class_mapping.keys()], [
+        (
+            filename,
+            [[a[0], a[1], a[2], a[3], unique_class_mapping[a[4]]] for a in annotations]
+        )
+        for filename, annotations in file_annotations]
 
 
 if __name__ == "__main__":
 
     annotation_dir = "data/Annotations/"
     image_dir = "data/JPEGImages/"
-    preprocess_dir = "data/Preprocess/"
+    preprocess_dir = "data/Preprocess/Annotations"
 
     file_paths = [
         join(annotation_dir, filename)
@@ -64,29 +70,30 @@ if __name__ == "__main__":
     ]
 
     print("[+] Parsing %d annotation files" % len(file_paths))
-    annotations = [parse_file(path, image_dir) for path in file_paths]
-    annotations = sum(annotations, [])
-    annotations = [flatten_annotation(a) for a in annotations]
-    class_encoding, annotations = encoding_classes(annotations)
+    file_annotations = [parse_file(path, image_dir) for path in file_paths]
+    class_encoding, file_annotations = encoding_classes(file_annotations)
 
-    print("[+] Found %d objects" % len(annotations))
+    print("[+] Creating CSV files for annotations")
+    for i, (filename, annotations) in enumerate(file_annotations):
 
-    print("[+] Creating CSV file for annotations")
-    dataframe = pd.DataFrame(
-        annotations,
-        columns=[
-            "filename",
-            "obj_class",
-            "xmin",
-            "ymin",
-            "xmax",
-            "ymax"
-        ]
-    )
-    dataframe.to_csv(
-        join(preprocess_dir, "annotations.csv"),
-        index=False
-    )
+        dataframe = pd.DataFrame(
+            annotations,
+            columns=[
+                "xmin",
+                "ymin",
+                "xmax",
+                "ymax",
+                "obj_class",
+            ]
+        )
+        dataframe.to_csv(
+            join(preprocess_dir, filename + ".csv"),
+            index=False
+        )
+
+        percentage = (1.0 * i / len(file_annotations)) * 100
+        if percentage % 10 == 0:
+            print("\t[+] Created %.0f percent files" % percentage)
 
     print("[+] Creating CSV file for class mapping")
     class_encoding_dataframe = pd.DataFrame(

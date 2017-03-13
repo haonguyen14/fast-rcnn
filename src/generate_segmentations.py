@@ -8,11 +8,15 @@ from os import listdir
 from os.path import join
 
 def get_regions(image_arr):
-    scale = max(image_arr.shape[0], image_arr.shape[1])
+
+    h = image_arr.shape[0]
+    w = image_arr.shape[1]
+    scale = max(w, h)
     image_lbl, regions = ss.selective_search(image_arr, scale=scale)
 
     regions = Set([r["rect"] for r in regions])
-    return list(regions)
+    regions = list(regions)
+    return [[r[0]*1.0/w, r[1]*1.0/h, r[2], r[3]] for r in regions if r[2] != 0 and r[3] != 0]
 
 def get_positive_region(regions, p):
     pass
@@ -37,8 +41,8 @@ if __name__ == "__main__":
            columns=[
                "xmin",
                "ymin",
-               "xmax",
-               "ymax"
+               "width",
+               "height"
            ]
         )
         dataframe.to_csv(

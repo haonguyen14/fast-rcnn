@@ -4,6 +4,10 @@ import torch.autograd as autograd
 import torchvision.models as models
 
 import math
+import numpy as np
+
+
+IGNORE_LABEL = 2
 
 
 class RegionProposalNetwork(nn.Module):
@@ -41,7 +45,20 @@ class RegionProposalNetwork(nn.Module):
                     m.bias.data.zero_()
 
 
+def get_target_weights():
+
+    weights = np.ones(3)
+    weights[IGNORE_LABEL] = 0.0
+    return torch.Tensor(weights)
+
+
 def train_rpn(x):
 
     rpn = RegionProposalNetwork()
     objectness_logits, _ = rpn(x)
+
+    # foreground-background classification
+    log_softmax = nn.LogSoftmax()
+    crossentropy_loss = nn.NLLLoss2d(weight=get_target_weights())
+
+    # bounding-box regression

@@ -28,9 +28,10 @@ class RegionProposalNetwork(nn.Module):
         x = self._convolutions(x)
         x = self._conv_3_256(x)
 
-        objectness_logits = self._spartial_linear_objectness(x)
-        objectness_logits = objectness_logits.resize(1, 9, 2, 10, 15).permute(0, 2, 1, 3, 4).resize(1, 2, 90, 15)
+        height, width = x.size(2), x.size(3)
 
+        objectness_logits = self._spartial_linear_objectness(x)
+        objectness_logits = objectness_logits.resize(1, 9, 2, height, width).permute(0, 2, 1, 3, 4).resize(1, 2, 9*height, width)
         bbox_regressors = self._spartial_linear_bbox_reg(x)
 
         return objectness_logits, bbox_regressors

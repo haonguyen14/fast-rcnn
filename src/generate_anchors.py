@@ -43,7 +43,7 @@ def generate_scale_anchors(anchor, scales):
     return make_anchors(ws, hs, x_center, y_center)
 
 
-def generate_anchor(base_size, ratios=np.array([0.5, 1, 2]), scales=2**np.arange(3, 6)):
+def generate_anchors(base_size, ratios=np.array([0.5, 1, 2]), scales=2**np.arange(3, 6)):
 
     base_box = np.array([0, 0, base_size-1, base_size-1])
     ratio_anchors = generate_ratios_anchors(base_box, ratios)

@@ -1,4 +1,6 @@
 import torch.nn as nn
+from torch import Tensor
+from torch.autograd import Variable
 import numpy as np
 import numpy.random as npr
 from generate_anchors import generate_anchors
@@ -39,6 +41,8 @@ class AnchorDataGenerator(nn.Module):
 
         # get all valid anchors (those are inside the image)
         valid_anchor_indices, valid_anchors = self._get_valid_anchors(all_anchors, im_w, im_h)
+        #print("[+] %d ground truth boxes in total." % len(ground_truth_boxes))
+        #print("[+] Found %d valid anchors in total %d." % (len(valid_anchor_indices), num_anchors))
 
         # get valid anchor labels
         anchor_max_overlap_indices, valid_anchor_labels = \
@@ -47,6 +51,7 @@ class AnchorDataGenerator(nn.Module):
         # ignore exceeding foreground anchors
         target_size_foregrounds = self.BATCH_SIZE * self.FOREGROUND_ANCHOR_PERCENTAGE
         foreground_indices = np.where(valid_anchor_labels == self.FOREGROUND_LABEL)[0]
+        #print("[+] Need %d, found %d foreground anchor" % (target_size_foregrounds, len(foreground_indices)))
         if len(foreground_indices) > target_size_foregrounds:
             ignore_foreground_size = int(len(foreground_indices) - target_size_foregrounds)
             ignore_foregrounds = npr.choice(foreground_indices, size=ignore_foreground_size, replace=False)
@@ -55,6 +60,7 @@ class AnchorDataGenerator(nn.Module):
         # ignore exceeding background anchors
         target_size_backgrounds = self.BATCH_SIZE * self.BACKGROUND_ANCHOR_PERCENTAGE
         background_indices = np.where(valid_anchor_labels == self.BACKGROUND_LABEL)[0]
+        #print("[+] Need %d, found %d background anchor" % (target_size_backgrounds, len(background_indices)))
         if len(background_indices) > target_size_backgrounds:
             ignore_background_size = int(len(background_indices) - target_size_backgrounds)
             ignore_backgrounds = npr.choice(background_indices, size=ignore_background_size, replace=False)
@@ -67,6 +73,7 @@ class AnchorDataGenerator(nn.Module):
         bbox_mask[valid_anchor_labels == self.FOREGROUND_LABEL, :] = np.array([1., 1., 1., 1.])
 
         num_not_ignored = np.sum(valid_anchor_labels != self.IGNORE_LABEL)
+        print(num_not_ignored)
         bbox_norm = np.zeros((len(valid_anchor_indices), 4), dtype=np.float32)
         bbox_norm[valid_anchor_labels == self.FOREGROUND_LABEL, :] = np.ones((1, 4)) * 1.0 / num_not_ignored
 
@@ -88,9 +95,14 @@ class AnchorDataGenerator(nn.Module):
         all_bbox_adjustment_weights[valid_anchor_indices, :] = bbox_mask * bbox_norm
         all_bbox_adjustment_weights = \
             all_bbox_adjustment_weights.reshape(1, height, width, 4 * self._NUM_ANCHORS_PER_BOX)
-        all_bbox_adjustment_weights = all_bbox_adjustment_weights.transponse(0, 3, 1, 2)
+        all_bbox_adjustment_weights = all_bbox_adjustment_weights.transpose(0, 3, 1, 2)
 
-        return all_anchor_labels, all_bbox_adjustments, all_bbox_adjustment_weights
+        return (
+            Variable(Tensor(all_anchors)),
+            Variable(Tensor(all_anchor_labels)),
+            Variable(Tensor(all_bbox_adjustments)),
+            Variable(Tensor(all_bbox_adjustment_weights))
+        )
 
     def _get_valid_anchors(self, anchors, im_w, im_h):
         if self._include_cut_anchor:
@@ -99,7 +111,7 @@ class AnchorDataGenerator(nn.Module):
             filter_indices = np.where(
                 (anchors[:, 0] >= 0.) & (anchors[:, 1] >= 0.) &
                 (anchors[:, 2] < im_w) & (anchors[:, 3] < im_h)
-            )
+            )[0]
 
         return filter_indices, anchors[filter_indices]
 
@@ -109,8 +121,9 @@ class AnchorDataGenerator(nn.Module):
     def _get_overlap(self, anchors, gt_boxes):
 
         def cal_area(x_min, y_min, x_max, y_max):
-            area = (x_max - x_min + 1) * (y_max - y_min + 1)
-            return float(area) if area >= 0. else 0.
+            width = x_max - x_min + 1
+            height =  y_max - y_min + 1
+            return width * height if width > 0 and height > 0 else 0.
 
         def iou(box1, box2):
             box1_x_min, box1_y_min, box1_x_max, box1_y_max = self._box_info(box1)

@@ -31,7 +31,6 @@ class RegionProposalNetwork(nn.Module):
         height, width = x.size(2), x.size(3)
 
         objectness_logits = self._spartial_linear_objectness(x)
-        objectness_logits = objectness_logits.resize(1, 9, 2, height, width).permute(0, 2, 1, 3, 4).resize(1, 2, 9*height, width)
         bbox_regressors = self._spartial_linear_bbox_reg(x)
 
         return objectness_logits, bbox_regressors
@@ -45,21 +44,8 @@ class RegionProposalNetwork(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
-
 def get_target_weights():
 
     weights = np.ones(3)
     weights[IGNORE_LABEL] = 0.0
     return torch.Tensor(weights)
-
-
-def train_rpn(x):
-
-    rpn = RegionProposalNetwork()
-    objectness_logits, _ = rpn(x)
-
-    # foreground-background classification
-    log_softmax = nn.LogSoftmax()
-    crossentropy_loss = nn.NLLLoss2d(weight=get_target_weights())
-
-    # bounding-box regression

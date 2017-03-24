@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, LongTensor
 from torch.autograd import Variable
 import numpy as np
 import numpy.random as npr
@@ -73,7 +73,6 @@ class AnchorDataGenerator(nn.Module):
         bbox_mask[valid_anchor_labels == self.FOREGROUND_LABEL, :] = np.array([1., 1., 1., 1.])
 
         num_not_ignored = np.sum(valid_anchor_labels != self.IGNORE_LABEL)
-        print(num_not_ignored)
         bbox_norm = np.zeros((len(valid_anchor_indices), 4), dtype=np.float32)
         bbox_norm[valid_anchor_labels == self.FOREGROUND_LABEL, :] = np.ones((1, 4)) * 1.0 / num_not_ignored
 
@@ -98,8 +97,7 @@ class AnchorDataGenerator(nn.Module):
         all_bbox_adjustment_weights = all_bbox_adjustment_weights.transpose(0, 3, 1, 2)
 
         return (
-            Variable(Tensor(all_anchors)),
-            Variable(Tensor(all_anchor_labels)),
+            Variable(LongTensor(all_anchor_labels.astype(np.long))),
             Variable(Tensor(all_bbox_adjustments)),
             Variable(Tensor(all_bbox_adjustment_weights))
         )

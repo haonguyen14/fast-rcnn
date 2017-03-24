@@ -3,6 +3,7 @@ from os.path import join
 
 import torch
 from torch.autograd import Variable
+import torch.optim as opt
 
 import numpy as np
 import numpy.random as npr
@@ -10,7 +11,7 @@ import pandas as pd
 from PIL import Image
 
 from region_proposal import RegionProposalNetwork, get_target_weights
-from smooth_l1_loss import SmoothL1LossFunc
+from smooth_l1_loss import SmoothL1Loss
 from generate_anchor_data import AnchorDataGenerator
 
 
@@ -19,6 +20,7 @@ EPOCH = 1
 DATA_DIR = "data"
 IMAGE_DIR = join(DATA_DIR, "JPEGImages")
 ANNOTATION_DIR = join(DATA_DIR, "Preprocess/Annotations")
+
 
 def get_image_input(image_path):
     image = Image.open(image_path)
@@ -30,6 +32,7 @@ def get_image_input(image_path):
     im_w = Variable(torch.Tensor([image_a.shape[3]]))
 
     return input, im_w, im_h
+
 
 def get_ground_truth_boxes(annotation_path):
     df = pd.read_csv(annotation_path)
@@ -46,8 +49,13 @@ if __name__ == "__main__":
 
     rpn = RegionProposalNetwork()
     anchor_generator = AnchorDataGenerator()
-    nll_loss_func = torch.nn.CrossEntropyLoss(weight=get_target_weights())
-    regression_loss_func = SmoothL1LossFunc()
+
+    log_softmax_func = torch.nn.LogSoftmax()
+    nll_loss_func = torch.nn.NLLLoss2d(weight=get_target_weights(), size_average=False)
+
+    regression_loss_func = SmoothL1Loss()
+
+    optimizer = opt.SGD(rpn.parameters(), lr=0.001, momentum=0.9)
 
     for epoch in range(EPOCH):
         indices = np.arange(len(image_paths))
@@ -59,9 +67,30 @@ if __name__ == "__main__":
             image, im_w, im_h = get_image_input(image_path)
             ground_truth_boxes = get_ground_truth_boxes(annotation_path)
 
+            optimizer.zero_grad()
+
             logits, regressions = rpn(image)
             labels, bbox_targets, bbox_weights = anchor_generator(
                 logits, ground_truth_boxes, im_w, im_h)
 
-            nll_loss = nll_loss_func()
+            #  calculate negative log loss
+            #  TODO: pull number of anchors per box out to a configuration
+            logits = logits.resize(1, 2, 9 * logits.size(2), logits.size(3))
+            labels = labels.resize(1, labels.size(2), labels.size(3))
+
+            log_softmax = log_softmax_func(logits)
+            log_softmax = torch.cat(
+                (
+                    log_softmax,
+                    Variable(torch.zeros([1, 1, log_softmax.size(2), log_softmax.size(3)]))
+                ), 1)  # add an additional layer so that we can have 3 classes with 1 ignored
+
+            nll_loss = nll_loss_func(log_softmax, labels)
+
+            #  calculate regression loss
             regression_loss = regression_loss_func(regressions, bbox_targets, bbox_weights)
+
+            #  TODO: pull 256 to a configuration for batch size
+            loss = (nll_loss / 256.) + regression_loss
+            loss.backward()
+            optimizer.step()

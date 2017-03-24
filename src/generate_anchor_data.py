@@ -120,7 +120,7 @@ class AnchorDataGenerator(nn.Module):
 
         def cal_area(x_min, y_min, x_max, y_max):
             width = x_max - x_min + 1
-            height =  y_max - y_min + 1
+            height = y_max - y_min + 1
             return width * height if width > 0 and height > 0 else 0.
 
         def iou(box1, box2):

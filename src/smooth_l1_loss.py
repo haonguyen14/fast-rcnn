@@ -38,3 +38,12 @@ class SmoothL1LossFunc(autograd.Function):
         x.mul_(weights)
 
         return (x, None, None, None)
+
+
+class SmoothL1Loss(torch.nn.Module):
+    
+    def __init__(self):
+        super(SmoothL1Loss, self).__init__()
+
+    def forward(self, input, target, weights):
+        return SmoothL1LossFunc()(input, target, weights)

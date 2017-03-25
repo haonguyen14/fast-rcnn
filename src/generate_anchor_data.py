@@ -29,12 +29,12 @@ class AnchorDataGenerator(nn.Module):
         self._include_cut_anchor = include_cut_anchor
         self._stride = stride
 
-    def forward(self, anchor_object_scores, ground_truth_boxes, im_w, im_h):
-        anchor_object_scores = anchor_object_scores.data.numpy()
+    def forward(self, width, height, ground_truth_boxes, im_w, im_h):
         ground_truth_boxes = ground_truth_boxes.data.numpy()
         im_w, im_h = im_w.data.numpy(), im_h.data.numpy()
 
-        height, width = anchor_object_scores.shape[2], anchor_object_scores.shape[3]
+        width = int(width.data.numpy()[0])
+        height = int(height.data.numpy()[0])
 
         all_anchors = self._get_all_anchors(width, height)
         num_anchors = all_anchors.shape[0]

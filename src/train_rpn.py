@@ -45,14 +45,16 @@ if __name__ == "__main__":
             image = Variable(torch.Tensor(image))
             im_h = Variable(torch.Tensor([image.size(2)]))
             im_w = Variable(torch.Tensor([image.size(3)]))
-
             ground_truth_boxes = Variable(torch.Tensor(ground_truth_boxes))
 
             optimizer.zero_grad()
 
             logits, regressions = rpn(image)
+            width = Variable(torch.Tensor([logits.size(3)]))
+            height = Variable(torch.Tensor([logits.size(2)]))
+
             labels, bbox_targets, bbox_weights = anchor_generator(
-                logits, ground_truth_boxes, im_w, im_h)
+                width, height, ground_truth_boxes, im_w, im_h)
 
             #  calculate negative log loss
             #  TODO: pull number of anchors per box out to a configuration

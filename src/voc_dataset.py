@@ -46,7 +46,7 @@ class VOCDataSet(Dataset):
         image = np.asarray(image).astype(np.float).transpose(2, 0, 1)
 
         #  image normalization
-        image = image / 255.0
+        image /= 255.0
         image = (image - PIXEL_MEANS) / PIXEL_STDS
 
         #  parse annotation file

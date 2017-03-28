@@ -18,10 +18,10 @@ def parse_object_node(object_node):
     box_coor = object_node.find("bndbox")
 
     return [
-        box_coor.find("xmin").text,
-        box_coor.find("ymin").text,
-        box_coor.find("xmax").text,
-        box_coor.find("ymax").text,
+        float(box_coor.find("xmin").text)-1,
+        float(box_coor.find("ymin").text)-1,
+        float(box_coor.find("xmax").text)-1,
+        float(box_coor.find("ymax").text)-1,
         obj_class
     ]
 

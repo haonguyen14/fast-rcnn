@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 import pandas as pd
 import numpy as np
 from PIL import Image
+from scipy.misc import imresize
 
 
 PIXEL_MEANS = np.array([[[0.48462227599918]],
@@ -25,10 +26,11 @@ def collate_fn(batch):
 
 class VOCDataSet(Dataset):
 
-    def __init__(self, root, image_set, include_gt_lable=False, download=False):
+    def __init__(self, root, image_set, size=600, include_gt_lable=False, download=False):
         self._root = root
         self._image_dir = join(self._root, "JPEGImages")
         self._annotation_dir = join(self._root, "Preprocess/Annotations")
+        self._size = size
         
         #  get image file name
         assert (image_set == "train") | (image_set == "val"), "Invalid image set"
@@ -43,19 +45,27 @@ class VOCDataSet(Dataset):
         annotation_path = join(self._annotation_dir, "%s.jpg.csv" % self._dataset_index[i])
 
         image = Image.open(image_path).convert("RGB")
-        image = np.asarray(image).astype(np.float).transpose(2, 0, 1)
+        image = np.asarray(image).astype(np.float)
+
+        #  resize image
+        shorter_dim = np.min(image.shape[0:2])
+        scale_const = float(self._size) / shorter_dim
+        image = imresize(image, size=scale_const)
 
         #  image normalization
+        image = image.transpose(2, 0, 1)
         image /= 255.0
         image = (image - PIXEL_MEANS) / PIXEL_STDS
 
         #  parse annotation file
         annotations = pd.read_csv(annotation_path)
         annotations = annotations.as_matrix()
-        if not self._include_gt_label:
-            annotations = annotations[:, 0:4]
 
-        return image, annotations
+        bboxes = annotations[:, 0:4] * scale_const
+        if self._include_gt_label:
+            labels = annotations[:, 4]
+
+        return image, annotations, labels
 
     def __len__(self):
         return len(self._dataset_index)

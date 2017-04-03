@@ -6,10 +6,10 @@ void smoothl1lossForward(
           THFloatTensor* output,
           THFloatTensor* weights) {
 
-    float sum = 0.0;
+    float sum = 0.0f;
     TH_TENSOR_APPLY3(float, input, float, target, float, weights,
         float z = fabs(*input_data - *target_data);
-        z = z < 1 ? 0.5*z*z : z-0.5;
+        z = z < 1.0f ? 0.5f*z*z : z-0.5f;
         sum += (z * *weights_data);
     );
 
@@ -23,6 +23,7 @@ void smoothl1lossBackward(
           THFloatTensor* grad_input,
           THFloatTensor* weights) {
 
+	THFloatTensor_resizeAs(grad_input, input);
     THFloatTensor* diff = THFloatTensor_newWithSize(
             THFloatTensor_newSizeOf(input),
             THFloatTensor_newStrideOf(input));

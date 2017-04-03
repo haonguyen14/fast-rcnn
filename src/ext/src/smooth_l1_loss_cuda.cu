@@ -11,7 +11,7 @@ struct smoothl1_functor {
 	template<typename Tuple>
 	__host__ __device__ float operator()(Tuple t) const {
 		float z = abs(thrust::get<0>(t) - thrust::get<1>(t));
-		z = z < 1.0f ? z*0.5f*0.5f : z-0.5f;
+		z = z < 1.0f ? z*z*0.5f : z-0.5f;
 		return z * thrust::get<2>(t);
 	}
 };

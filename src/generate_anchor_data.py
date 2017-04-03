@@ -43,6 +43,7 @@ class AnchorDataGenerator(nn.Module):
         valid_anchor_indices, valid_anchors = self._get_valid_anchors(all_anchors, im_w, im_h)
         #print("[+] %d ground truth boxes in total." % len(ground_truth_boxes))
         #print("[+] Found %d valid anchors in total %d." % (len(valid_anchor_indices), num_anchors))
+        print("%d valid anchors in %dx%d image" % (valid_anchors.shape[0], im_w, im_h))
 
         # get valid anchor labels
         anchor_max_overlap_indices, valid_anchor_labels = \

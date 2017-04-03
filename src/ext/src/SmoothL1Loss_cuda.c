@@ -35,6 +35,7 @@ void smoothl1lossBackwardCuda(
 		THCudaTensor* grad_input,
 		THCudaTensor* weights) {
 
+	THCudaTensor_resizeAs(state, grad_input, input);
 	ptrdiff_t size = THCudaTensor_nElement(state, input);
 
 	input = THCudaTensor_newContiguous(state, input);

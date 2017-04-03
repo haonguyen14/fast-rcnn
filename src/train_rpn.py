@@ -50,7 +50,7 @@ if __name__ == "__main__":
         
         running_loss = 0.0
 
-        for i, (image, ground_truth_boxes) in enumerate(dataloader):
+        for i, (image, ground_truth_boxes, _) in enumerate(dataloader):
             image = Variable(torch.Tensor(image).cuda())
             im_h = Variable(torch.Tensor([image.size(2)]))
             im_w = Variable(torch.Tensor([image.size(3)]))

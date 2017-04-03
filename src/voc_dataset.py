@@ -22,7 +22,12 @@ PIXEL_STDS = np.array([[[0.22889466674951]],
 def collate_fn(batch):
     image = batch[0][0][np.newaxis, :]
     gt_boxes = batch[0][1]
-    return torch.Tensor(image), torch.Tensor(gt_boxes)
+    gt_labels = batch[0][2]
+    
+    if gt_labels is None:
+        return torch.Tensor(image), torch.Tensor(gt_boxes), None
+
+    return torch.Tensor(image), torch.Tensor(gt_boxes), torch.Tensor(gt_labels)
 
 class VOCDataSet(Dataset):
 
@@ -50,7 +55,7 @@ class VOCDataSet(Dataset):
         #  resize image
         shorter_dim = np.min(image.shape[0:2])
         scale_const = float(self._size) / shorter_dim
-        image = imresize(image, size=scale_const)
+        image = imresize(image, size=scale_const).astype(np.float32)
 
         #  image normalization
         image = image.transpose(2, 0, 1)
@@ -62,10 +67,12 @@ class VOCDataSet(Dataset):
         annotations = annotations.as_matrix()
 
         bboxes = annotations[:, 0:4] * scale_const
+        labels = None
+
         if self._include_gt_label:
             labels = annotations[:, 4]
 
-        return image, annotations, labels
+        return image, bboxes, labels
 
     def __len__(self):
         return len(self._dataset_index)

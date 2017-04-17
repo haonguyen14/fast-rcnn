@@ -15,6 +15,7 @@ def parse_annotation(root):
 def parse_object_node(object_node):
 
     obj_class = object_node.find("name").text
+    obj_difficult = int(object_node.find("difficult").text)
     box_coor = object_node.find("bndbox")
 
     return [
@@ -22,6 +23,7 @@ def parse_object_node(object_node):
         float(box_coor.find("ymin").text)-1,
         float(box_coor.find("xmax").text)-1,
         float(box_coor.find("ymax").text)-1,
+        obj_difficult,
         obj_class
     ]
 
@@ -44,7 +46,7 @@ def flatten_annotation(annotation):
 
 def encoding_classes(file_annotations):
 
-    unique_classes = [Set([a[4] for a in annotations]) for _, annotations in file_annotations]
+    unique_classes = [Set([a[5] for a in annotations]) for _, annotations in file_annotations]
     unique_classes = reduce(lambda x, y: x.union(y), unique_classes, Set())
 
     unique_class_mapping = {
@@ -53,7 +55,7 @@ def encoding_classes(file_annotations):
     return [(key, unique_class_mapping[key]) for key in unique_class_mapping.keys()], [
         (
             filename,
-            [[a[0], a[1], a[2], a[3], unique_class_mapping[a[4]]] for a in annotations]
+            [[a[0], a[1], a[2], a[3], a[4], unique_class_mapping[a[5]]] for a in annotations]
         )
         for filename, annotations in file_annotations]
 
@@ -75,7 +77,6 @@ if __name__ == "__main__":
 
     print("[+] Creating CSV files for annotations")
     for i, (filename, annotations) in enumerate(file_annotations):
-
         dataframe = pd.DataFrame(
             annotations,
             columns=[
@@ -83,7 +84,8 @@ if __name__ == "__main__":
                 "ymin",
                 "xmax",
                 "ymax",
-                "obj_class",
+                "difficult",
+                "obj_class"
             ]
         )
         dataframe.to_csv(

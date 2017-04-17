@@ -43,7 +43,6 @@ class AnchorDataGenerator(nn.Module):
         valid_anchor_indices, valid_anchors = self._get_valid_anchors(all_anchors, im_w, im_h)
         #print("[+] %d ground truth boxes in total." % len(ground_truth_boxes))
         #print("[+] Found %d valid anchors in total %d." % (len(valid_anchor_indices), num_anchors))
-        print("%d valid anchors in %dx%d image" % (valid_anchors.shape[0], im_w, im_h))
 
         # get valid anchor labels
         anchor_max_overlap_indices, valid_anchor_labels = \
@@ -69,13 +68,11 @@ class AnchorDataGenerator(nn.Module):
 
         bbox_adjustments = self._compute_bbox_target(
             valid_anchors, ground_truth_boxes[anchor_max_overlap_indices, :])
-
-        bbox_mask = np.zeros((len(valid_anchor_indices), 4), dtype=np.float32)
-        bbox_mask[valid_anchor_labels == self.FOREGROUND_LABEL, :] = np.array([1., 1., 1., 1.])
+        bbox_weights = np.zeros((len(valid_anchor_indices), 4), dtype=np.float32)
+        bbox_weights[np.where(valid_anchor_labels == self.FOREGROUND_LABEL)] = \
+                np.array([1., 1., 1., 1.])
 
         num_not_ignored = np.sum(valid_anchor_labels != self.IGNORE_LABEL)
-        bbox_norm = np.zeros((len(valid_anchor_indices), 4), dtype=np.float32)
-        bbox_norm[valid_anchor_labels == self.FOREGROUND_LABEL, :] = np.ones((1, 4)) * 1.0 / num_not_ignored
 
         all_anchor_labels = np.empty((num_anchors,), dtype=np.float32)
         all_anchor_labels.fill(self.IGNORE_LABEL)
@@ -84,23 +81,24 @@ class AnchorDataGenerator(nn.Module):
         all_anchor_labels = all_anchor_labels.transpose(0, 3, 1, 2)
         all_anchor_labels = all_anchor_labels.reshape(1, 1, self._NUM_ANCHORS_PER_BOX * height, width)
 
-        all_bbox_adjustments = np.empty((num_anchors, 4), dtype=np.float32)
-        all_bbox_adjustments.fill(0.)
+        all_bbox_adjustments = np.zeros((num_anchors, 4), dtype=np.float32)
         all_bbox_adjustments[valid_anchor_indices, :] = bbox_adjustments
         all_bbox_adjustments = all_bbox_adjustments.reshape(1, height, width, 4 * self._NUM_ANCHORS_PER_BOX)
         all_bbox_adjustments = all_bbox_adjustments.transpose(0, 3, 1, 2)
 
-        all_bbox_adjustment_weights = np.empty((num_anchors, 4), dtype=np.float32)
-        all_bbox_adjustment_weights.fill(0.)
-        all_bbox_adjustment_weights[valid_anchor_indices, :] = bbox_mask * bbox_norm
-        all_bbox_adjustment_weights = \
-            all_bbox_adjustment_weights.reshape(1, height, width, 4 * self._NUM_ANCHORS_PER_BOX)
-        all_bbox_adjustment_weights = all_bbox_adjustment_weights.transpose(0, 3, 1, 2)
+        all_bbox_inside_weights = np.zeros((num_anchors, 4), dtype=np.float32)
+        all_bbox_inside_weights[valid_anchor_indices, :] = bbox_weights
+        all_bbox_inside_weights = all_bbox_inside_weights.reshape( \
+                1, height, width, 4 * self._NUM_ANCHORS_PER_BOX)
+        all_bbox_inside_weights = all_bbox_inside_weights.transpose(0, 3, 1, 2)
 
         return (
             Variable(LongTensor(all_anchor_labels.astype(np.long))),
             Variable(Tensor(all_bbox_adjustments)),
-            Variable(Tensor(all_bbox_adjustment_weights))
+            Variable(Tensor(all_bbox_inside_weights)),
+            Variable(Tensor([1.0 / num_not_ignored])),
+            #Variable(Tensor(all_anchors)),
+            #Variable(Tensor(valid_anchor_indices))
         )
 
     def _get_valid_anchors(self, anchors, im_w, im_h):
@@ -160,6 +158,12 @@ class AnchorDataGenerator(nn.Module):
         # for each ground truth box what anchors maximize their IOU
         gt_max_overlaps = overlap[np.argmax(overlap, axis=0), np.arange(overlap.shape[1])]
         gt_max_overlap_indices = np.where(overlap == gt_max_overlaps)[0]
+        """
+        print(gt_max_overlaps)
+        print(np.where(overlap == gt_max_overlaps))
+        print(overlap[np.where(overlap == gt_max_overlaps)])
+        print(np.where(anchor_max_overlaps >= self.POSITIVE_IOU_THRESHOLD)[0])
+        """
 
         labels = np.empty((anchors.shape[0], ), dtype=np.float32)
         labels.fill(self.IGNORE_LABEL)

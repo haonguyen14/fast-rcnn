@@ -13,6 +13,7 @@ from generate_anchor_data import AnchorDataGenerator
 
 import sys
 import pickle
+import time
 
 DATA_PATH = "data/Experiments"
 
@@ -67,11 +68,18 @@ if __name__ == "__main__":
                             num_workers=5,
                             collate_fn=collate_fn 
                            )
-    loss_data = []
 
+    loss_in_epoch = []
+    loss_epoches = []
+    log_interval = 500
+
+    print("[+] Start training...")
     for epoch in range(num_epoches):
         
+        start_time = time.time()
         running_loss = 0.0
+        loss_epoch = 0.0
+        counter = 0
 
         for i, (image, ground_truth_boxes, _) in enumerate(dataloader):
             image = Variable(torch.Tensor(image).cuda())
@@ -118,16 +126,21 @@ if __name__ == "__main__":
             optimizer.step()
 
             running_loss += loss.data[0]
+            loss_epoch += loss.data[0]
            
-            if i % 100 == 99:
-                loss_data.append(running_loss / 100)
-                print("[%d, %d] loss = %.3f" % (epoch, i, loss_data[-1]))
+            if i % log_interval == (log_interval-1):
+                loss_in_epoch.append(running_loss / log_interval)
                 running_loss = 0.0
+
+            counter += 1
+
+        total_time = time.time() - start_time
+        ave_loss = loss_epoch / float(counter)
+        print("Epoch %d/%d: ave_loss=%.3f total_time=%.3f" % (epoch+1, num_epoches, ave_loss, total_time))
     
         torch.save({
             "epoch": epoch,
+            "ave_loss": ave_loss,
+            "running_loss": running_loss,
             "state_dict": rpn.state_dict()
         }, join(experiment["checkpoint"], "checkpoint_%d.tar" % epoch))
-
-    with open(join(experiment["main"], "loss.pkl"), "wb") as f:
-        pickle.dump(loss_data, f)

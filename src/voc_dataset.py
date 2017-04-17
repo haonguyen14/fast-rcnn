@@ -31,7 +31,7 @@ def collate_fn(batch):
 
 class VOCDataSet(Dataset):
 
-    def __init__(self, root, image_set, size=600, include_gt_lable=False, download=False):
+    def __init__(self, root, image_set, size=600, include_gt_lable=False, include_difficult_gt=False):
         self._root = root
         self._image_dir = join(self._root, "JPEGImages")
         self._annotation_dir = join(self._root, "Preprocess/Annotations")
@@ -44,6 +44,7 @@ class VOCDataSet(Dataset):
             self._dataset_index = {i:line[0:-1] for i, line in enumerate(f)}
 
         self._include_gt_label = include_gt_lable
+        self._include_difficult_gt = include_difficult_gt
 
     def __getitem__(self, i):
         image_path = join(self._image_dir, "%s.jpg" % self._dataset_index[i])
@@ -65,12 +66,15 @@ class VOCDataSet(Dataset):
         #  parse annotation file
         annotations = pd.read_csv(annotation_path)
         annotations = annotations.as_matrix()
+        gt_idx = np.arange(0, annotations.shape[0])
+        if not self._include_difficult_gt:
+            gt_idx = np.where(annotations[:, 4] == 0)[0]
 
-        bboxes = annotations[:, 0:4] * scale_const
+        bboxes = annotations[gt_idx, 0:4] * scale_const
         labels = None
 
         if self._include_gt_label:
-            labels = annotations[:, 4]
+            labels = annotations[gt_idx, 5]
 
         return image, bboxes, labels
 

@@ -7,27 +7,22 @@ import torchvision.transforms as transforms
 
 import pandas as pd
 import numpy as np
-from PIL import Image
+import cv2
 from scipy.misc import imresize
 
-
-PIXEL_MEANS = np.array([[[0.48462227599918]],
-                          [[0.45624044862054]],
-                          [[0.40588363755159]]])
-
-PIXEL_STDS = np.array([[[0.22889466674951]],
-                        [[0.22446679341259]],
-                        [[0.22495548344775]]])
+# BGR format to match VGG16 pretrained model
+PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
 
 def collate_fn(batch):
     image = batch[0][0][np.newaxis, :]
     gt_boxes = batch[0][1]
     gt_labels = batch[0][2]
+    image_info = np.hstack((batch[0][0].shape[1:], batch[0][3]))
     
     if gt_labels is None:
-        return torch.Tensor(image), torch.Tensor(gt_boxes), None
+        return torch.Tensor(image), torch.Tensor(gt_boxes), torch.Tensor(image_info), None
 
-    return torch.Tensor(image), torch.Tensor(gt_boxes), torch.Tensor(gt_labels)
+    return torch.Tensor(image), torch.Tensor(gt_boxes), torch.Tensor(image_info), torch.Tensor(gt_labels)
 
 class VOCDataSet(Dataset):
 
@@ -36,6 +31,7 @@ class VOCDataSet(Dataset):
         self._image_dir = join(self._root, "JPEGImages")
         self._annotation_dir = join(self._root, "Preprocess/Annotations")
         self._size = size
+        self._max_size = 1000
         
         #  get image file name
         assert (image_set == "train") | (image_set == "val"), "Invalid image set"
@@ -50,18 +46,23 @@ class VOCDataSet(Dataset):
         image_path = join(self._image_dir, "%s.jpg" % self._dataset_index[i])
         annotation_path = join(self._annotation_dir, "%s.jpg.csv" % self._dataset_index[i])
 
-        image = Image.open(image_path).convert("RGB")
-        image = np.asarray(image).astype(np.float)
-
-        #  resize image
-        shorter_dim = np.min(image.shape[0:2])
-        scale_const = float(self._size) / shorter_dim
-        image = imresize(image, size=scale_const).astype(np.float32)
+        image = cv2.imread(image_path).astype(np.float32)
 
         #  image normalization
+        image = image - PIXEL_MEANS
+
+        #  resize image
+        shorter_dim = float(np.min(image.shape[0:2]))
+        longer_dim = float(np.max(image.shape[0:2]))
+        scale_const = float(self._size) / shorter_dim
+        if (scale_const * longer_dim) > self._max_size:
+            scale_const = float(self._max_size) / longer_dim
+        image = cv2.resize(image, None, None, \
+                fx=scale_const, fy=scale_const, \
+                interpolation=cv2.INTER_LINEAR)
+
+        #  transpose to match pytorch convolution input
         image = image.transpose(2, 0, 1)
-        image /= 255.0
-        image = (image - PIXEL_MEANS) / PIXEL_STDS
 
         #  parse annotation file
         annotations = pd.read_csv(annotation_path)
@@ -76,7 +77,7 @@ class VOCDataSet(Dataset):
         if self._include_gt_label:
             labels = annotations[gt_idx, 5]
 
-        return image, bboxes, labels
+        return image, bboxes, labels, scale_const
 
     def __len__(self):
         return len(self._dataset_index)

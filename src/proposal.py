@@ -18,10 +18,10 @@ class ProposalGenerator(nn.Module):
         self._BASE_ANCHORS = generate_anchors(self.ANCHOR_BASE_SIZE)[np.newaxis, :]
         self._NUM_ANCHORS_PER_BOX = self._BASE_ANCHORS.shape[1]
     
-    def forward(self, bbox_deltas, scores, im_w, im_h):
+    def forward(self, bbox_deltas, scores, image_info):
+        scores = scores.view([scores.size(0), 18, -1, scores.size(3)])
         scores = scores.data.numpy()
-        scores = scores.reshape([1, 18, scores.shape[2]/9, scores.shape[3]])
-        scores = scores[:, 9:, :, :]
+        scores = scores[:, 9:, :, :]  # take all foreground scores
         bbox_deltas = bbox_deltas.data.numpy()
 
         height = scores.shape[2]
@@ -33,18 +33,22 @@ class ProposalGenerator(nn.Module):
             self._BASE_ANCHORS
         )
 
+        im_h = image_info[0]
+        im_w = image_info[1]
+        scale_const = image_info[2]
+
         scores = scores.transpose([0, 2, 3, 1]).reshape([-1, 1])
         bbox_deltas = bbox_deltas.transpose([0, 2, 3, 1]).reshape([-1, 4])
         proposals = generate_proposals(anchors, bbox_deltas)
         proposals = clip_boxes(proposals, im_w, im_h)
         
-        threshold = 16. * (im_h.data[0] / im_w.data[0])
+        threshold = 16. * scale_const
         keep = filter_boxes(proposals, threshold)
         proposals = proposals[keep, :]
         scores = scores[keep]
 
         order = scores.ravel().argsort()[::-1]
-        order = order[:6000]
+        order = order[:12000]
         proposals = proposals[order, :]
         scores = scores[order]
 

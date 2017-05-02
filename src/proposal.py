@@ -2,8 +2,6 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 
-import numpy as np
-
 from generate_anchors import generate_anchors
 from anchor_util import *
 from nms import py_cpu_nms

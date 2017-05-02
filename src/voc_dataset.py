@@ -18,15 +18,21 @@ def collate_fn(batch):
     gt_boxes = batch[0][1]
     gt_labels = batch[0][2]
     image_info = np.hstack((batch[0][0].shape[1:], batch[0][3]))
-    
-    if gt_labels is None:
-        return torch.Tensor(image), torch.Tensor(gt_boxes), torch.Tensor(image_info), None
+    image_name = batch[0][4]
 
-    return torch.Tensor(image), torch.Tensor(gt_boxes), torch.Tensor(image_info), torch.Tensor(gt_labels)
+    ret = [torch.Tensor(image), torch.Tensor(gt_boxes), torch.Tensor(image_info), None, None]
+    
+    if gt_labels is not None:
+        ret[3] = torch.Tensor(gt_labels)
+    if image_name is not None:
+        ret[4] = image_name
+
+    return ret
+
 
 class VOCDataSet(Dataset):
 
-    def __init__(self, root, image_set, size=600, include_gt_lable=False, include_difficult_gt=False):
+    def __init__(self, root, image_set, size=600, include_gt_lable=False, include_difficult_gt=False, include_image_name=False):
         self._root = root
         self._image_dir = join(self._root, "JPEGImages")
         self._annotation_dir = join(self._root, "Preprocess/Annotations")
@@ -41,9 +47,11 @@ class VOCDataSet(Dataset):
 
         self._include_gt_label = include_gt_lable
         self._include_difficult_gt = include_difficult_gt
+        self._include_image_name = include_image_name
 
     def __getitem__(self, i):
-        image_path = join(self._image_dir, "%s.jpg" % self._dataset_index[i])
+        image_name = self._dataset_index[i]
+        image_path = join(self._image_dir, "%s.jpg" % image_name)
         annotation_path = join(self._annotation_dir, "%s.jpg.csv" % self._dataset_index[i])
 
         image = cv2.imread(image_path).astype(np.float32)
@@ -76,8 +84,10 @@ class VOCDataSet(Dataset):
 
         if self._include_gt_label:
             labels = annotations[gt_idx, 5]
+        if not self._include_image_name:
+            image_name = None
 
-        return image, bboxes, labels, scale_const
+        return image, bboxes, labels, scale_const, image_name
 
     def __len__(self):
         return len(self._dataset_index)

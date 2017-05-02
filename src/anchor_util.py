@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def generate_all_anchors(width, height, stride, base_anchors):
 
         # generating shift matrix
@@ -14,6 +15,7 @@ def generate_all_anchors(width, height, stride, base_anchors):
 
         # generating all possible anchors with shape (num_anchors * w * h, 4)
         return (base_anchors + shifts).reshape(num_anchors * width * height, 4)
+
 
 def generate_proposals(anchors, deltas):
     anchor_width = anchors[:, 2] - anchors[:, 0] + 1.0
@@ -39,6 +41,7 @@ def generate_proposals(anchors, deltas):
 
     return pred_boxes
 
+
 def clip_boxes(proposals, w, h):
     proposals[:, 0::4] = np.maximum(np.minimum(proposals[:, 0::4], w-1), 0)
     proposals[:, 1::4] = np.maximum(np.minimum(proposals[:, 1::4], h-1), 0)
@@ -46,10 +49,12 @@ def clip_boxes(proposals, w, h):
     proposals[:, 3::4] = np.maximum(np.minimum(proposals[:, 3::4], h-1), 0)
     return proposals
 
+
 def filter_boxes(proposals, threshold):
     ws = proposals[:, 2] - proposals[:, 0] + 1
     hs = proposals[:, 3] - proposals[:, 1] + 1
     return np.where((ws >= threshold) & (hs >= threshold))[0]
+
 
 def get_overlap(anchors, gt_boxes):
         def cal_area(x_min, y_min, x_max, y_max):
@@ -82,6 +87,26 @@ def get_overlap(anchors, gt_boxes):
                 overlap[i, j] = iou(anchors[i], gt_boxes[j])
 
         return overlap
+
+
+def compute_bbox_target(anchors, gt_boxes):
+    anchor_width = anchors[:, 2] - anchors[:, 0] + 1.0
+    anchor_height = anchors[:, 3] - anchors[:, 1] + 1.0
+    anchor_x = (anchors[:, 2] + anchors[:, 0]) * .5
+    anchor_y = (anchors[:, 3] + anchors[:, 1]) * .5
+
+    gt_width = gt_boxes[:, 2] - gt_boxes[:, 0] + 1.0
+    gt_height = gt_boxes[:, 3] - gt_boxes[:, 1] + 1.0
+    gt_x = (gt_boxes[:, 2] + gt_boxes[:, 0]) * .5
+    gt_y = (gt_boxes[:, 3] + gt_boxes[:, 1]) * .5
+
+    dx = (gt_x - anchor_x) / anchor_width
+    dy = (gt_y - anchor_y) / anchor_height
+    dw = np.log(gt_width / anchor_width)
+    dh = np.log(gt_height / anchor_height)
+
+    return np.vstack([dx, dy, dw, dh]).transpose()
+
 
 def box_info(box):
         return box[0], box[1], box[2], box[3]

@@ -10,13 +10,12 @@ from torch.nn import SmoothL1Loss
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
-from voc_dataset import VOCDataSet, collate_fn
+from voc_dataset_2 import VOCDataSet, collate_fn
 from region_proposal import RegionProposalNetwork, get_target_weights
 from generate_anchor_data import AnchorDataGenerator
 from average import AverageMeter
 
 import time
-import numpy as np
 
 arguments = argparse.ArgumentParser(description="Training Region Proposal Network")
 arguments.add_argument("name", help="experiment name")
@@ -63,7 +62,7 @@ def main():
     dataloader = DataLoader(train_data, batch_size=1, shuffle=True, num_workers=5, collate_fn=collate_fn)
 
     ################### MODEL BOOTSRAP #####################
-    print("[+] Bootsrapping model")
+    print("[+] Bootstrapping model")
     rpn = RegionProposalNetwork().cuda()
 
     if args.resume is not None:
@@ -100,11 +99,11 @@ def train(experiment,
     epoch_start_time = time.time()
     epoch_loss = AverageMeter()
 
-    for i, (image, ground_truth_boxes, image_info, _) in enumerate(dataloader):
+    for i, (_, image, ground_truth_boxes, _, _) in enumerate(dataloader):
         image = Variable(torch.Tensor(image).cuda())
         im_h = Variable(torch.Tensor([image.size(2)]))
         im_w = Variable(torch.Tensor([image.size(3)]))
-        ground_truth_boxes = Variable(torch.Tensor(ground_truth_boxes))
+        ground_truth_boxes = Variable(torch.Tensor(ground_truth_boxes[:, 1:]))
 
         optimizer.zero_grad()
 

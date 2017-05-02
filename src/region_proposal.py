@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import torch
 import torch.nn as nn
 import torch.autograd as autograd
@@ -12,9 +14,12 @@ IGNORE_LABEL = 2
 
 class RegionProposalNetwork(nn.Module):
 
-    def __init__(self):
+    def __init__(self, pretrained=True):
         super(RegionProposalNetwork, self).__init__()
-        self._convolutions = models.vgg16(pretrained=True).features
+
+        #  VGG16 feature map
+        vgg = models.vgg16(pretrained=pretrained)
+        self._convolutions = self._build_vgg_layers(vgg)
         for m in list(self._convolutions.children())[:10]:
             self.set_requires_grad(m, False)
 
@@ -35,6 +40,29 @@ class RegionProposalNetwork(nn.Module):
         objectness_logits = self._spartial_linear_objectness(x)
         bbox_regressors = self._spartial_linear_bbox_reg(x)
         return objectness_logits, bbox_regressors
+
+    def _build_vgg_layers(self, vgg):
+        features = list(vgg.features.children())[:-1]
+
+        # build OrderedDict
+        curr_layer_idx = 1
+        curr_idx = 1
+        modules = []
+        for f in features:
+            if isinstance(f, nn.Conv2d):
+                name = "Conv%d_%d" % (curr_layer_idx, curr_idx)
+            elif isinstance(f, nn.ReLU):
+                name = "Relu%d_%d" % (curr_layer_idx, curr_idx)
+                curr_idx += 1
+            elif isinstance(f, nn.MaxPool2d):
+                name = "MaxPool%d" % curr_layer_idx
+                curr_layer_idx += 1
+                curr_idx = 1
+            else:
+                raise Exception("Unexpected layer")
+            modules.append((name, f))
+
+        return nn.Sequential(OrderedDict(modules))
 
     def _initialize_convo_weights(self, m):
         m.weight.data.normal_(0, 0.01)

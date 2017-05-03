@@ -20,6 +20,7 @@ import time
 arguments = argparse.ArgumentParser(description="Training Region Proposal Network")
 arguments.add_argument("name", help="experiment name")
 arguments.add_argument("epoch", help="number of epoches", type=int)
+arguments.add_argument("--stage-1-path", help="path to stage 1 checkpoint", default=None)
 arguments.add_argument("--batch-size", help="batch size (number of anchors per image)", type=int, default=256)
 arguments.add_argument("-e", "--experiments", help="experiment path", default="data/Experiments")
 arguments.add_argument("-d", "--display", help="display interval", type=int, default=100)
@@ -63,7 +64,9 @@ def main():
 
     ################### MODEL BOOTSRAP #####################
     print("[+] Bootstrapping model")
-    rpn = RegionProposalNetwork().cuda()
+    if args.stage_1_path is not None:
+        print("[+] Loading stage 1 weights")
+    rpn = RegionProposalNetwork(load_stage_1=args.stage_1_path).cuda()
 
     if args.resume is not None:
         print("[+] Resuming from %s" % args.resume)

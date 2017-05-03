@@ -11,7 +11,7 @@ from src.proposal import ProposalGenerator
 from os import listdir
 from os.path import join
 
-checkpoint_dir = "data/Experiments/rpn_model_16/checkpoints"
+checkpoint_dir = "data/Experiments/rpn_stage_2/checkpoints"
 checkpoints = [join(checkpoint_dir, cp) for cp in listdir(checkpoint_dir)]
 
 cp = [None] * len(checkpoints)

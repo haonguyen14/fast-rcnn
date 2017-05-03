@@ -1,19 +1,26 @@
+import torch
 import torch.nn as nn
 import torchvision.models as models
 import roi_pooling.roi_pooling as roi_pooling
+import region_proposal
 from collections import OrderedDict
 
 
 class FasterRCNN(nn.Module):
 
-    def __init__(self, pretrained=True):
+    def __init__(self, load_stage_2=None):
         super(FasterRCNN, self).__init__()
 
         #  VGG16 feature map
-        vgg = models.vgg16(pretrained=pretrained)
-        self._features = self._build_vgg_layers(vgg)
-        for m in list(self._features.children())[:10]:
-            self.set_requires_grad(m, False)
+        if load_stage_2 is None:
+            vgg = models.vgg16(pretrained=True)
+            self._features = self._build_vgg_layers(vgg)
+            for m in list(self._features.children())[:10]:
+                self.set_requires_grad(m, False)
+        else:
+            self._features = self._get_feature_map_rpn(torch.load(load_stage_2)["state_dict"])
+            for m in list(self._features.children()):
+                self.set_requires_grad(m, False)
 
         #  ROI pooling with spacial scale (1. / 16.) ~ 0.0625
         self._roi_pooling = roi_pooling.ROIPooling((7, 7), spatial_scale=0.0625)
@@ -45,6 +52,9 @@ class FasterRCNN(nn.Module):
         x = self._fc1(x)
         x = self._fc2(x)
         return self._cls_score(x), self._bbox_pred(x)
+
+    def get_feature_layer(self):
+        return self._features
 
     def _build_vgg_layers(self, vgg):
         features = list(vgg.features.children())[:-1]
@@ -79,3 +89,8 @@ class FasterRCNN(nn.Module):
     def set_requires_grad(self, module, requires_grad):
         for params in module.parameters():
             params.requires_grad = requires_grad
+
+    def _get_feature_map_rpn(self, state_dict):
+        rpn = region_proposal.RegionProposalNetwork()
+        rpn.load_state_dict(state_dict)
+        return rpn.get_feature_layer()

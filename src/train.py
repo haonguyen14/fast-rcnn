@@ -19,6 +19,7 @@ import time
 arguments = argparse.ArgumentParser(description="Training Fast-RCNN")
 arguments.add_argument("name", help="experiment name")
 arguments.add_argument("epoch", help="number of epoches", type=int)
+arguments.add_argument("--stage-2-path", help="path to stage 2 checkpoint", default=None)
 arguments.add_argument("--roi_path", help="roi data", default="data/ROIs")
 arguments.add_argument("--batch-size", help="batch size", type=int, default=2)
 arguments.add_argument("--rois-per-batch", help="number of rois per batch", type=int, default=128)
@@ -68,8 +69,10 @@ def main():
 
     ################### MODEL BOOTSRAP #####################
     print("[+] Bootstrapping model")
-    net = FasterRCNN(pretrained=True).cuda()
-    net.train(mode=True)
+    if args.stage_2_path is not None:
+        print("[+] Loading stage 2 weights")
+    net = FasterRCNN(args.stage_2_path).cuda()
+    net.train()
 
     if args.resume is not None:
         print("[+] Resuming from %s" % args.resume)

@@ -7,14 +7,16 @@ float smoothl1lossForward_cuda(
 		float *input,
 		float *target,
 		float *weights,
+		float sigma,
 		ptrdiff_t size);
 
 void smoothl1lossBackward_cuda(
 		cudaStream_t stream,
 		float *input,
 		float *target,
-		float *weights,
 		float *output,
+		float *weights,
+		float sigma,
 		ptrdiff_t size);
 
 #ifdef __cplusplus

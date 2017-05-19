@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import pickle
+import time
 
 import torch
 import torch.nn as nn
@@ -16,6 +17,7 @@ arguments = argparse.ArgumentParser("Generate Proposals Using RPN")
 arguments.add_argument("model", help="path to RPN checkpoint")
 arguments.add_argument("-d", "--dataset", help="dataset", default="train", choices=["train", "val"])
 arguments.add_argument("-p", "--path", help="proposal path", default="data/ROIs")
+arguments.add_argument("--display", help="display interval", default=100, type=int)
 
 
 def generate(rpn, softmax_m, proposal_generator, image_arr, image_info):
@@ -47,7 +49,7 @@ def main():
     os.makedirs(args.path)
 
     checkpoint = torch.load(args.model)
-    train_data = voc_dataset.VOCDataSet("data", args.dataset)
+    train_data = voc_dataset.VOCDataSet("data", args.dataset, enabled_flip=True)
     dataloader = DataLoader(train_data, batch_size=1,
                             shuffle=True, num_workers=5, collate_fn=voc_dataset.collate_fn)
 
@@ -58,11 +60,16 @@ def main():
     softmax_m = nn.Softmax2d().cuda()
     proposal_generator = proposal.ProposalGenerator()
 
-    for indices, image_arr, _, _, image_info in dataloader:
+    start_time = time.time()
+    for i, (indices, image_arr, _, _, image_info) in enumerate(dataloader):
         image_name = train_data.get_image_name_from_index(indices[0])
         proposals = generate(rpn, softmax_m, proposal_generator, image_arr, image_info[0, :])
         with open(os.path.join(args.path, "%s.pkl" % image_name), "wb") as f:
             pickle.dump(proposals, f)
+        if i % args.display == (args.display - 1):
+            ave_time = (time.time() - start_time) / float(args.display)
+            print("[+] Processed %d images (%.3f sec/image)" % (i, ave_time))
+            start_time = time.time()
 
 
 if __name__ == "__main__":

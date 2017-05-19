@@ -24,12 +24,12 @@ arguments.add_argument("--roi_path", help="roi data", default="data/ROIs")
 arguments.add_argument("--batch-size", help="batch size", type=int, default=2)
 arguments.add_argument("--rois-per-batch", help="number of rois per batch", type=int, default=128)
 arguments.add_argument("-e", "--experiments", help="experiment path", default="data/Experiments")
-arguments.add_argument("-d", "--display", help="display interval", type=int, default=100)
+arguments.add_argument("-d", "--display", help="display interval", type=int, default=500)
 arguments.add_argument("-r", "--resume", help="resume from a checkpoint", default=None)
 arguments.add_argument("--lr", help="base learning rate", type=float, default=0.001)
 arguments.add_argument("--momentum", help="momentum constant", type=float, default=0.9)
 arguments.add_argument("--gamma", help="learning rate decay constant", type=float, default=0.1)
-arguments.add_argument("--lr-stepsize", help="learning rate decay stepsize", type=int, default=11)
+arguments.add_argument("--lr-stepsize", help="learning rate decay stepsize", type=int, default=10)
 arguments.add_argument("--replace", help="replace previous experiment with similar name", action="store_true")
 
 
@@ -64,7 +64,7 @@ def main():
 
     assert args.rois_per_batch % args.batch_size == 0, "Uneven number of rois per image"
     rois_per_image = args.rois_per_batch / args.batch_size
-    train_data = VOCDataSetROIs("data", "train", rois_per_image)
+    train_data = VOCDataSetROIs("data", "train", rois_per_image, enabled_flip=True)
     dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=5, collate_fn=collate_rois_fn)
 
     ################### MODEL BOOTSRAP #####################

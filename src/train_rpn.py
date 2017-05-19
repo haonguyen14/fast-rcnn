@@ -6,7 +6,7 @@ from shutil import rmtree
 
 import torch
 import torch.optim as opt
-from torch.nn import SmoothL1Loss
+from torch.nn import SmoothL1Loss, L1Loss
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
@@ -23,12 +23,12 @@ arguments.add_argument("epoch", help="number of epoches", type=int)
 arguments.add_argument("--stage-1-path", help="path to stage 1 checkpoint", default=None)
 arguments.add_argument("--batch-size", help="batch size (number of anchors per image)", type=int, default=256)
 arguments.add_argument("-e", "--experiments", help="experiment path", default="data/Experiments")
-arguments.add_argument("-d", "--display", help="display interval", type=int, default=100)
+arguments.add_argument("-d", "--display", help="display interval", type=int, default=500)
 arguments.add_argument("-r", "--resume", help="resume from a checkpoint", default=None)
 arguments.add_argument("--lr", help="base learning rate", type=float, default=0.001)
 arguments.add_argument("--momentum", help="momentum constant", type=float, default=0.9)
 arguments.add_argument("--gamma", help="learning rate decay constant", type=float, default=0.1)
-arguments.add_argument("--lr-stepsize", help="learning rate decay stepsize", type=int, default=11)
+arguments.add_argument("--lr-stepsize", help="learning rate decay stepsize", type=int, default=8)
 arguments.add_argument("--replace", help="replace previous experiment with similar name", action="store_true")
 
 
@@ -76,7 +76,7 @@ def main():
     anchor_generator = AnchorDataGenerator()
     log_softmax_func = torch.nn.LogSoftmax().cuda()
     nll_loss_func = torch.nn.NLLLoss2d(weight=get_target_weights(), size_average=False).cuda()
-    regression_loss_func = SmoothL1Loss(size_average=False).cuda()
+    regression_loss_func = L1Loss(size_average=False).cuda()
     optimizer = opt.SGD([params for params in rpn.parameters() if params.requires_grad],
                         lr=args.lr, momentum=args.momentum, weight_decay=0.0005)
 

@@ -125,7 +125,7 @@ def compute_ap(recalls, precisions):
         if np.sum(recalls >= t) == 0:
             p = 0.
         else:
-            p = np.max(precisions[recalls > t])
+            p = np.max(precisions[recalls >= t])
         ap += (p / 11.)
     return ap
 
@@ -163,7 +163,7 @@ def get_ap(rpn, net, dataset, dataloader, name, nms_threshold=0.3, tempdir="data
 def main():
     args = arguments.parse_args()
 
-    dataset = VOCDataSet("data", args.dataset)
+    dataset = VOCDataSet("data", args.dataset, enabled_flip=False)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=5, collate_fn=collate_fn)
 
     print("[+] Bootstrapping model")
@@ -173,6 +173,7 @@ def main():
     rpn_checkpoint = torch.load(args.rpn)
     fast_rcnn = FasterRCNN().cuda()
     fast_rcnn.load_state_dict(fast_rcnn_checkpoint["state_dict"])
+    fast_rcnn.eval()
     rpn = RegionProposalNetwork().cuda()
     rpn.load_state_dict(rpn_checkpoint["state_dict"])
 

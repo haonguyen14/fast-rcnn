@@ -93,15 +93,18 @@ def collate_fn(samples):
 
 class VOCDataSet(Dataset):
 
-    def __init__(self, root, image_set, min_size=600, max_size=1000):
+    def __init__(self, root, image_set, min_size=600, max_size=1000, enabled_flip=True):
+        assert (image_set == "train") | (image_set == "val"), "Invalid image set"
+
         self._root = root
         self._min_size = min_size
         self._max_size = max_size
+        self._enabled_flip = enabled_flip
+        self._image_set = "trainval" if image_set == "train" else "test"
         self._image_dir = os.path.join(self._root, "JPEGImages")
         self._annotation_dir = os.path.join(self._root, "Preprocess/Annotations")
-        assert (image_set == "train") | (image_set == "val"), "Invalid image set"
 
-        with open(os.path.join(self._root, "ImageSets/Main/%s.txt" % image_set), "r") as f:
+        with open(os.path.join(self._root, "ImageSets/Main/%s.txt" % self._image_set), "r") as f:
             self._dataset_index = {i: line[0:-1] for i, line in enumerate(f)}
 
     def _get_image(self, index):
@@ -133,23 +136,43 @@ class VOCDataSet(Dataset):
         return annotations[gt_idx, 0:4]*image_info[2], annotations[gt_idx, 5]
 
     def get_image_name_from_index(self, index):
-        return self._dataset_index[index]
+        index_, is_flipped = self._get_index(index)
+        return self._dataset_index[index_] + ("_flipped" if is_flipped else "")
 
     def __getitem__(self, i):
-        image, image_info = self._get_image(i)
-        gt_bbox, gt_label = self._get_annotation(i, image_info)
+        index, is_flipped = self._get_index(i)
+        image, image_info = self._get_image(index)
+        gt_bbox, gt_label = self._get_annotation(index, image_info)
         gt_bbox = gt_bbox.astype(np.float32)
         gt_label = np.array([CLASS_TO_INDEX[x] for x in gt_label])
+        
+        if is_flipped:
+            image = image[:, :, ::-1]
+            gt_bbox_x1 = gt_bbox[:, 0].copy()
+            gt_bbox_x2 = gt_bbox[:, 2].copy()
+            gt_bbox[:, 0] = image.shape[2] - gt_bbox_x2 - 1
+            gt_bbox[:, 2] = image.shape[2] - gt_bbox_x1 - 1
+            
         return i, image, gt_bbox, gt_label, image_info
 
     def __len__(self):
+        if self._enabled_flip:
+            return len(self._dataset_index) * 2  # take into account flipped images
         return len(self._dataset_index)
+    
+    def _get_index(self, i):
+        if i < 0 or i >= self.__len__():
+            raise IndexError("list index (%d) out of range" % i)
+        if self._enabled_flip:
+            orig_size = len(self._dataset_index)
+            return i % orig_size, i >= orig_size  # (index, is_flipped)
+        return i, False
 
 
 class VOCDataSetROIs(Dataset):
 
-    def __init__(self, root, image_set, rois_per_image, roi_path="data/ROIs", min_size=600, max_size=1000):
-        self._image_data = VOCDataSet(root, image_set, min_size, max_size)
+    def __init__(self, root, image_set, rois_per_image, roi_path="data/ROIs", min_size=600, max_size=1000, enabled_flip=True):
+        self._image_data = VOCDataSet(root, image_set, min_size, max_size, enabled_flip=enabled_flip)
         self._roi_path = roi_path
         self._rois_per_image = rois_per_image
 

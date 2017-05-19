@@ -6,7 +6,7 @@ from _ext import smooth_l1_loss
 import numpy as np
 
 class SmoothL1LossFunc(Function):
-    def forward(self, input, target, weights):
+    def forward(self, input, target, weights, sigma):
         self.save_for_backward(input, target, weights)
         output = torch.FloatTensor([1])
 

@@ -7,7 +7,8 @@ void smoothl1lossForwardCuda(
 		THCudaTensor* input,
 		THCudaTensor* target,
 		THCudaTensor* output,
-		THCudaTensor* weights) {
+		THCudaTensor* weights,
+		float sigma) {
 	
 	ptrdiff_t size = THCudaTensor_nElement(state, input);	
 
@@ -20,7 +21,7 @@ void smoothl1lossForwardCuda(
 	float *target_ptr = THCudaTensor_data(state, target);
 	float *weight_ptr = THCudaTensor_data(state, weights);
 	
-	float loss  = smoothl1lossForward_cuda(stream, input_ptr, target_ptr, weight_ptr, size);
+	float loss  = smoothl1lossForward_cuda(stream, input_ptr, target_ptr, weight_ptr, sigma, size);
 
 	THCudaTensor_free(state, input);
 	THCudaTensor_free(state, target);
@@ -33,7 +34,8 @@ void smoothl1lossBackwardCuda(
 		THCudaTensor* input,
 		THCudaTensor* target,
 		THCudaTensor* grad_input,
-		THCudaTensor* weights) {
+		THCudaTensor* weights,
+		float sigma) {
 
 	THCudaTensor_resizeAs(state, grad_input, input);
 	ptrdiff_t size = THCudaTensor_nElement(state, input);
@@ -48,7 +50,7 @@ void smoothl1lossBackwardCuda(
 	float *weight_ptr = THCudaTensor_data(state, weights);
 	float *grad_input_ptr= THCudaTensor_data(state, grad_input);
 
-	smoothl1lossBackward_cuda(stream, input_ptr, target_ptr, grad_input_ptr, weight_ptr, size);
+	smoothl1lossBackward_cuda(stream, input_ptr, target_ptr, grad_input_ptr, weight_ptr, sigma, size);
 
 	THCudaTensor_free(state, input);
 	THCudaTensor_free(state, target);
